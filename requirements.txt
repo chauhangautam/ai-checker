@@ -1,0 +1,8 @@
+flask
+streamlit
+pillow
+pypdf
+python-docx
+# Optional (bada accuracy ke liye, ~1-2GB download):
+# transformers
+# torch

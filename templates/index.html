@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Content Checker</title>
+<style>
+:root{--bg:#f3f5f1;--ink:#1d2a24;--mut:#5d6b64;--line:#c9d2cb;--acc:#2f5d50;--hi:#b8452f;--mid:#b98a1e;--lo:#2f7d4f}
+@media(prefers-color-scheme:dark){:root{--bg:#141a17;--ink:#e6ece8;--mut:#93a39a;--line:#2c3832;--acc:#7fc4ad;--hi:#e0745c;--mid:#d9ae47;--lo:#6fc28f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Georgia,"Times New Roman",serif;padding:32px 20px}
+main{max-width:640px;margin:0 auto}
+h1{font-size:2rem;margin:0 0 6px;letter-spacing:-.01em}
+p.sub{color:var(--mut);margin:0 0 28px}
+#drop{border:2px dashed var(--line);border-radius:6px;padding:44px 20px;text-align:center;cursor:pointer;transition:border-color .15s}
+#drop.over,#drop:focus-visible{border-color:var(--acc);outline:none}
+#drop b{display:block;font-size:1.1rem}
+#drop span{color:var(--mut);font-size:.9rem}
+#out{margin-top:28px}
+.meter{height:10px;background:var(--line);border-radius:5px;overflow:hidden;margin:10px 0 6px}
+.meter i{display:block;height:100%;width:0;transition:width .4s}
+h2{margin:0;font-size:1.4rem}
+ul{padding-left:20px}li{margin:6px 0}
+.note{color:var(--mut);font-size:.88rem;border-top:1px solid var(--line);padding-top:12px;margin-top:20px}
+.err{color:var(--hi)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>Kya ye content AI se bana hai?</h1>
+<p class="sub">Photo, video, PDF ya Word file upload karo. Hum metadata aur content dekh kar andaza lagate hain.</p>
+<div id="drop" tabindex="0" role="button" aria-label="File chunein">
+  <b>File yahan chhodo ya click karo</b>
+  <span>JPG, PNG, WEBP, MP4, PDF, DOCX, TXT</span>
+</div>
+<input id="file" type="file" hidden accept=".jpg,.jpeg,.png,.webp,.gif,.bmp,.mp4,.mov,.webm,.pdf,.docx,.txt,.md">
+<section id="out" aria-live="polite"></section>
+</main>
+<script>
+const drop=document.getElementById('drop'),file=document.getElementById('file'),out=document.getElementById('out');
+drop.onclick=()=>file.click();
+drop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click()}};
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])send(e.dataTransfer.files[0])});
+file.onchange=()=>file.files[0]&&send(file.files[0]);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function send(f){
+  out.innerHTML='<p>Jaanch ho rahi hai… (pehli baar model load hone me 1-2 minute lag sakte hain)</p>';
+  const fd=new FormData();fd.append('file',f);
+  try{
+    const r=await fetch('/api/check',{method:'POST',body:fd}),d=await r.json();
+    if(!r.ok){out.innerHTML='<p class="err">'+esc(d.error)+'</p>';return}
+    const s=d.score,col=s>=75?'var(--hi)':s>=40?'var(--mid)':'var(--lo)';
+    out.innerHTML=`<h2>${esc(d.verdict)}</h2>
+      <p style="margin:2px 0;color:var(--mut)">${esc(d.filename)}</p>
+      ${s==null?'':`<div class="meter"><i style="background:${col};width:${s}%"></i></div><div>AI hone ka andaza: <b>${s}%</b></div>`}
+      <h3>Kaaran</h3><ul>${d.reasons.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
+      <p class="note">Ye sirf andaza hai, saboot nahi. Metadata hat sakta hai aur detectors galat ho sakte hain. Is result se kisi par ilzaam mat lagao.</p>`;
+  }catch(e){out.innerHTML='<p class="err">Server se connect nahi ho paya ('+esc(e.message)+'). Terminal me error dekho aur check karo ki python app.py abhi chal raha hai.</p>'}
+}
+</script>
+</body>
+</html>
